@@ -1,0 +1,30 @@
+"$schema" = "https://cdn.posit.co/publisher/schemas/posit-publishing-schema-v3.json"
+type = "html"
+entrypoint = "_site/index.html"
+title = "Kenometrics"
+source = "index.qmd"
+files = [
+    "/_site",
+    "/.posit/publish/Kenometrics-2EDS.toml",
+    "/.posit/publish/deployments/deployment-0F2J.toml",
+    "/about.qmd",
+    "/index.qmd",
+    "/profile.jpg",
+    "/README.md",
+    "/styles.css",
+    "/_freeze",
+    "/_quarto.yml",
+    "/posts/An Analysis of Nigerias Economy/index.qmd",
+    "/posts/An Analysis of Nigerias Economy/_metadata.yml",
+    "/posts/Federal Fiscal Data/index.qmd",
+    "/posts/Federal Fiscal Data/_metadata.yml",
+    "/posts/Federal Time Series/index.qmd",
+    "/posts/Federal Time Series/_metadata.yml",
+    "/posts/Voting Turnout/.vdoc.b31fdd70-99a9-4e23-86cb-3b3be1381769.r",
+    "/posts/Voting Turnout/.vdoc.c1f1622d-4b5a-434d-885d-c91c569cb5ab.r",
+    "/posts/Voting Turnout/index.qmd",
+    "/posts/Voting Turnout/_metadata.yml",
+    "/posts/_metadata.yml",
+]
+validate = true
+product_type = "connect_cloud"

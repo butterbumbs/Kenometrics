@@ -1,15 +1,28 @@
 /* css styles */
+@import url('https://googleapis.com');
 
-body {
-  font-family: "Times New Roman", Times, serif;
-  font-size: 18px;
+body,
+.navbar {
+  font-family: "Figtree", sans-serif;
+  font-size: 16px;
   line-height: 1.6;
 }
 
 h1.title {
-  font-family: "Times New Roman";
-  font-size: 30px;
+  font-family: "Figtree";
+  font-size: 25px;
 }
+
+.navbar-nav .nav-link {
+  transition: color 0.25s ease;
+}
+
+.navbar-nav .nav-item:nth-child(1) .nav-link:hover { color: #FF4D4D !important; }
+.navbar-nav .nav-item:nth-child(2) .nav-link:hover { color: #FF9F1C !important; }
+.navbar-nav .nav-item:nth-child(3) .nav-link:hover { color: #FFE14D !important; }
+.navbar-nav .nav-item:nth-child(4) .nav-link:hover { color: #4DFF88 !important; }
+.navbar-nav .nav-item:nth-child(5) .nav-link:hover { color: #4DC3FF !important; }
+.navbar-nav .nav-item:nth-child(6) .nav-link:hover { color: #B388FF !important; }
 
 /* code should stay monospace even with serif body text */
 code, pre {
