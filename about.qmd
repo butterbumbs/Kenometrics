@@ -1,0 +1,27 @@
+---
+title: "About"
+image: profile.jpg
+about:
+  template: marquee
+  links:
+    - icon: linkedin
+      text: LinkedIn
+      href: https://www.linkedin.com/in/zvikomborero-kennedy-jokonya-a77576277/
+    - icon: github
+      text: Github
+      href: https://github.com/butterbumbs
+---
+
+Kennedy Jokonya is an Economist Data Analyst
+
+## Education
+
+**Bachelor of Arts & Social Sciences in Economics**
+
+Simon Fraser University, Burnaby, BC \| May, 2023 ‐ August, 2026
+
+-   Concentration in Economic Data Analysis.
+
+-   Minor in Social Data Analytics.
+
+## Experience

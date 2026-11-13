@@ -1,0 +1,17 @@
+/* css styles */
+
+body {
+  font-family: "Times New Roman", Times, serif;
+  font-size: 18px;
+  line-height: 1.6;
+}
+
+h1.title {
+  font-family: "Times New Roman";
+  font-size: 30px;
+}
+
+/* code should stay monospace even with serif body text */
+code, pre {
+  font-family: "Courier New", monospace;
+}

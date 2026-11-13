@@ -1,0 +1,185 @@
+---
+title: "Voter Turnout by Province"
+format: html
+embed-resources: true
+author: Kennedy Jokonya
+bibliography: references.bib
+date: "2026-09-27"
+image: "provturnthumb.jpeg"
+categories: [Elections, Analysis, Glocal]
+---
+
+```{r output=FALSE, echo=FALSE, message=FALSE, warning=FALSE}
+#| label: libs
+# clean and libs
+library(tidyverse)
+library(sf)
+
+## Read in
+# to render
+turndf1 <- read.csv("73586e35-290d-431c-94ba-5cf8a97c4ae5.csv")
+provinces <- st_read("lpr_000b21a_e.shp")
+# to run in file
+# comment out when rendering
+#turndf1 <- read.csv("posts/Voting Turnout/73586e35-290d-431c-94ba-5cf8a97c4ae5.csv")
+#provinces <- st_read("posts/Voting Turnout/lpr_000b21a_e.shp")
+##
+
+turndf <- turndf1 %>%
+  filter(
+    YEAR >= 2025
+  ) %>%
+    select(YEAR, PROVINCE_ID, PROVINCE_E, GENDER_E, AGE_GROUP_ID, AGE_GROUP_E, VOTES, ELIGIBLE_ELECTORS, TURNOUT_ELIGIBLE_ELECTOR)
+
+
+unique(turndf$AGE_GROUP_E)
+
+turndf <- turndf %>%
+  filter(
+    PROVINCE_E != "Canada", 
+    !AGE_GROUP_E %in% c("First time", "Not first time", "All ages"), 
+    GENDER_E != "All genders"
+)
+
+
+
+votedata <- turndf %>%
+    select(PROVINCE_E, GENDER_E, AGE_GROUP_E, VOTES, ELIGIBLE_ELECTORS,TURNOUT_ELIGIBLE_ELECTOR)
+
+unique(votedata$GENDER_E)
+
+votedata <- votedata %>%
+    mutate(
+        GENDER_E = case_when(
+            GENDER_E == "Female" ~ "Women+",
+            GENDER_E == "Male" ~ "Men+",
+            .default = GENDER_E
+        )   
+    )
+```
+
+```{r output=FALSE, echo=FALSE, message=FALSE, warning=FALSE}
+#| label: mapdata
+provmapdt <- votedata %>%
+    select(PROVINCE_E,TURNOUT_ELIGIBLE_ELECTOR)
+
+seq <- unique(votedata$PROVINCE_E)
+prov_dot <- data.frame(PRENAME = unique(votedata$PROVINCE_E), TURNOUT = NA)
+
+for(i in seq_along(seq)){
+    row <- votedata$PROVINCE_E == seq[i]
+    prov_dot$TURNOUT[i] <- mean(votedata$TURNOUT_ELIGIBLE_ELECTOR[row])
+}
+
+mapdata <- prov_dot %>%
+    left_join(provinces, by = "PRENAME")
+
+mapdata <- st_as_sf(mapdata)
+#provs
+comp <- provinces[provinces$PRENAME %in% c("British Columbia", "Nunavut"), ]
+comp_two <- mapdata[mapdata$PRENAME %in% c("British Columbia", "Nunavut"), ]
+
+```
+
+Elections Canada is responsible for ensuring democratic standards are met in Canadian elections. It also publishes data on past elections, including election results, voter turnout, and voter demographic characteristics. This data can be used for multiple purposes in analysing the political landscape of Canada, such as in Elections Canada's own summary reports comparing past elections. Since the data is public, we can conduct our own analyses. This short paper uses voting data from the 45th general election in 2025 to compare turnout between two provinces of choice, and discusses how demographic differences may explain the gap.
+
+The data used here was retrived from @turnoutCan, but it can also be downloaded from Elections Canada's web portal. 
+
+## National Turnout
+```{r echo=FALSE, message=FALSE, warning=FALSE, cache=TRUE}
+#| label: fig-nation
+#Nation
+ggplot(mapdata) +
+    geom_sf(aes(fill = TURNOUT*100)) +
+    scale_fill_viridis_c(name = "Turnout (%)") +
+    geom_sf_text(aes(label = PRENAME), size = 2.5, check_overlap = TRUE) +
+    labs(title = "Average Voter Turnout by Province") + 
+    theme_minimal()
+```
+
+**What is Voter Turnout?** Voter turnout is calculated as the total number of people who cast a ballot divided by the total number of people within a province who were eligible to do so, resulting in a proportion of eligible voters who voted [@turnoutCan].
+
+@fig-nation shows average voter turnout from the 45th general election in 2025, and shows that all provinces except Northwest Territories and Nunavut had turnout greater than 50%. This means most eligible voters in nearly every province cast a ballot, with Northwest Territories and Nunavut as the exceptions. According to @electionsCan, this is an improvement in the overall turnout from the previous 44th general election by `6.4` percantage points. 
+
+For our comparison, we chose British Columbia, a relatively high turnout province, to compare against Nunavut, which had the lowest turnout in this election.
+
+## British Columbia Vs Nunavut
+```{r echo=FALSE, message=FALSE, warning=FALSE, cache=TRUE}
+#| label: fig-prov
+#PROVs
+ggplot(comp) +
+    geom_sf(aes(fill = (comp_two$TURNOUT)*100)) +
+    scale_fill_viridis_c(name = "Turnout (%)") +
+    geom_sf_text(aes(label = PRENAME), size = 2.5, check_overlap = TRUE) +
+    labs(title = "Average Voter Turnout: B.C. Vs Nunavut") + 
+    theme_minimal()
+
+```
+
+@fig-prov shows voter turnout from the last election for just these two provinces. British Columbia's turnout was `r round(0.6328003*100, 2)`%, while Nunavut's was `r round(0.3049667*100, 2)`%. They differ by `r round(0.6328003*100, 2) - round(0.3049667*100, 2)`%, making British Columbia's turnout `r round(63.28/30.5, 2)` times higher than Nunavut's. With this gap established, we can now look at demographic differences between the provinces to help explain it.
+
+### Why does voter turnout vary between British Columbia and Nunavut?
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+#| label: fig-bar
+votedata_comp <- votedata[votedata$PROVINCE_E %in% c("British Columbia", "Nunavut"), ]
+ggplot(votedata_comp, aes(x = AGE_GROUP_E, y = TURNOUT_ELIGIBLE_ELECTOR*100, fill = GENDER_E)) +
+  geom_col(position = "dodge") +
+  labs(x = "Age Group", y = "Turnout (%)", fill = "Gender") +
+  facet_wrap(~PROVINCE_E) +
+  coord_flip()
+```
+
+Before answering this question, it's worth noting that there could be many reasons for the turnout gap between these provinces, and our data limits us to a few well-supported explanations. Our dataset only captures turnout, location, age, and gender, so we examine those variables to see whether they help explain the difference.
+
+@fig-bar shows turnout by age and gender for both provinces. We again see that British Columbia has substantially higher turnout overall. The `65 to 74 years` age group has the highest turnout in British Columbia, while in Nunavut the `75 years and over` have the highest turnout. Both provinces have their lowest turnout in the `18 to 24 years` group. Every age group in British Columbia has at least a 40% turnout, but in Nunavut only the 45 and over groups reach that level. Turnout is similar across genders in both provinces.
+
+This suggests age is the most significant factor behind this gap. Our data also shows that Nunavut has, on average, more eligible voters aged 18 to 34 than British Columbia does. However, @fig-bar shows that younger voters are less likely to vote in Nunavut, and while British Columbia follows the same age pattern, its overall turnout remains higher across every age bracket. This suggests that motivation to vote increases with age in both provinces, but some other systematic or cultural differences affect turnout within age groups. One possible explanation is that British Columbia residents may feel a greater sense of agency over or involvement in the federal government than residents of Nunavut do, though this is a guess and would need further research.
+
+## Conclusion
+This paper showed that Elections Canada makes data on federal general elections public, allowing analysts to identify and report on turnout trends. Using turnout data from the 45th general election in 2025, we found that most of the nation's eligible voters participated, with Northwest Territories and Nunavut as exceptions. Comparing British Columbia and Nunavut showed that British Columbia has substantially higher turnout, and that differences in age composition were the most significant factor that could explain the gap, suggesting systematic or cultural differences within age groups may be driving the phenomenon. 
+
+```{r output=FALSE, output=FALSE, echo=FALSE, message=FALSE, warning=FALSE}
+#| label: test
+## BC
+BCGen <- votedata_comp %>%
+    filter(PROVINCE_E == "British Columbia") %>%
+    group_by(GENDER_E) %>%
+    summarise(eligible = sum(ELIGIBLE_ELECTORS)) %>%
+    mutate(percent = eligible / sum(eligible) * 100)
+BCAGE <- votedata_comp %>%
+    filter(PROVINCE_E == "British Columbia") %>%
+    group_by(AGE_GROUP_E) %>%
+    summarise(eligible = sum(ELIGIBLE_ELECTORS)) %>%
+    mutate(percent = eligible / sum(eligible) * 100)
+NuaGen <- votedata_comp %>%
+    filter(PROVINCE_E == "Nunavut") %>%
+    group_by(GENDER_E) %>%
+    summarise(eligible = sum(ELIGIBLE_ELECTORS)) %>%
+    mutate(percent = eligible / sum(eligible) * 100)
+NUAAGE <- votedata_comp %>%
+    filter(PROVINCE_E == "Nunavut") %>%
+    group_by(AGE_GROUP_E) %>%
+    summarise(eligible = sum(ELIGIBLE_ELECTORS)) %>%
+    mutate(percent = eligible / sum(eligible) * 100)
+
+
+
+prop.test(
+    x = c(
+        sum(votedata_comp$VOTES[votedata_comp$PROVINCE_E == "British Columbia"]),
+        sum(votedata_comp$VOTES[votedata_comp$PROVINCE_E == "Nunavut"])
+        ),
+    n = c(
+        sum(votedata_comp$ELIGIBLE_ELECTORS[votedata_comp$PROVINCE_E == "British Columbia"]),
+        sum(votedata_comp$ELIGIBLE_ELECTORS[votedata_comp$PROVINCE_E == "Nunavut"]))
+        )
+
+model <- glm(cbind(VOTES, ELIGIBLE_ELECTORS - VOTES) ~ PROVINCE_E + AGE_GROUP_E + GENDER_E,
+             data = votedata_comp, family = binomial)
+summary(model)
+```
+
+
+```{r output=FALSE, echo=FALSE, message=FALSE, warning=FALSE}
+summary(model)
+```

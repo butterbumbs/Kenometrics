@@ -1,0 +1,20 @@
+"$schema" = "https://cdn.posit.co/publisher/schemas/posit-publishing-schema-v3.json"
+type = "html"
+entrypoint = "_site/index.html"
+title = "Spock's Other Blog"
+source = "index.qmd"
+files = [
+    "/_site",
+    "/.posit/publish/Spock's Other Blog-R8U8.toml",
+    "/.posit/publish/deployments/deployment-629U.toml",
+    "/about.qmd",
+    "/index.qmd",
+    "/posts/Federal Fiscal Data",
+    "/posts",
+    "/_quarto.yml",
+    "/styles.css",
+    "/profile.jpg",
+    "/_freeze",
+]
+validate = true
+product_type = "connect_cloud"

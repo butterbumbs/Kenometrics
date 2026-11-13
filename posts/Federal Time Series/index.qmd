@@ -1,0 +1,268 @@
+---
+title: "Federal Net Worth Time Series"
+format: html
+embed-resources: true
+author: Kennedy Jokonya
+bibliography: ref.bib
+date: "`r Sys.Date()`"
+image: "fedfisthumb.png"
+---
+
+```{r output=FALSE, echo=FALSE, message=FALSE, warning=FALSE}
+
+## Load In
+library(tidyverse)
+library(scales)
+library(AER)
+library(dynlm)
+library(forecast)
+library(readxl)
+library(stargazer)
+library(scales)
+library(quantmod)
+library(urca)
+library(tseries)
+library(strucchange)
+library(kableExtra)
+
+####################### Net Worth ###############################
+#get data
+fiscal_new <- read.csv("posts/Federal Time Series/1010001501-noSymbol.csv")
+
+## Clean Data
+
+fiscal_new_df <- fiscal_new %>%
+    pivot_longer(
+        cols = -X,
+        names_to = "quarter",
+        values_to = "value"
+    ) %>%
+    filter(X == "Net worth")
+
+
+## Subset Data
+FedNet <- data.frame(quarter = fiscal_new_df$quarter, NetWorth = fiscal_new_df$value)
+
+# TS format
+FedNetTS <- ts(FedNet$NetWorth, start = 1990, end = 2026, frequency = 4)
+
+####################### GDP ###############################
+
+## read in GDP data
+gdp <- read.csv("posts/Federal Time Series/3610010401-noSymbol.csv")
+## Clean Data
+
+gdpDF <- gdp %>%
+    pivot_longer(
+        cols = -X,
+        names_to = "quarter",
+        values_to = "value"
+    ) %>%
+    filter(
+        X == "Gross domestic product at market prices",
+        quarter != "Q2.2026")
+
+gdpDF_dat <- data.frame(quarter = gdpDF$quarter, GDP = gdpDF$value)
+
+# TS format
+GDPTS <- ts(gdpDF_dat$GDP, start = 1990, end = 2026, frequency = 4)
+
+
+####################### Ratio ###############################
+
+# join data
+ratio_data <- left_join(FedNet, gdpDF_dat, by = "quarter")
+
+## calculate GDP-Net Worth Ratio
+#ratio = net worth / nominal gdp *100
+GDP_Net <- ratio_data %>%
+    mutate(ratio = (NetWorth/GDP))
+## ratio time series
+GDP_Net_TS <- ts(GDP_Net$ratio, 1990, 2026, 4)
+
+```
+
+
+# Time-Series Analysis of Federal Net Worth
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+#| label: fig-all
+networth_z_ts <- as.numeric(scale(FedNetTS))
+gdp_z_ts<- as.numeric(scale(GDPTS))
+
+par(mfrow = c(2, 2))
+
+plot(
+    FedNetTS,
+    col = "red",
+    lwd = 2,
+    ylab = "Net Worth",
+    xlab = "Date",
+    yaxt = "n",
+    main = "Quarterly Canadian Federal Net Worth")
+axis(2, at = axTicks(2), labels = dollar(axTicks(2)))
+#
+plot(
+    GDPTS,
+    col = "steelblue",
+    lwd = 2,
+    ylab = "GDP",
+    xlab = "Date",
+    yaxt = "n",
+    main = "Quarterly Canadian Nominal GDP")
+axis(2, at = axTicks(2), labels = dollar(axTicks(2)))
+#
+plot(
+    networth_z_ts,
+    type = "l",
+    col = "firebrick",
+    ylim = c(-3,3),
+    lwd = 2,
+    ylab = "Z-Score",
+    xlab = "Date",
+    main = "Quarterly Canadian Net Worth & GDP Z-Scores"
+)
+lines(gdp_z_ts, col = "steelblue", lwd = 2)
+abline(h = 0, lty = 2)
+legend(
+    "topleft",
+    legend = c("Net Worth", "GDP"),
+    col = c("firebrick","steelblue"),
+    lwd = 2,
+    bty = "n"
+)
+#
+plot(
+    GDP_Net_TS,
+    col = "red",
+    lwd = 2,
+    ylab = "Ratio",
+    xlab = "Date",
+    yaxt = "n",
+    main = "Quarterly Canadian GDP-Net Worth Ratio"
+)
+axis(
+    2, at = pretty(range(GDP_Net_TS), n = 10), 
+    labels = percent(pretty(range(GDP_Net_TS), n = 10))
+)
+```
+
+### Determine Net Worth-GDP Trend and Breaks
+```{r output=FALSE, echo=FALSE, message=FALSE, warning=FALSE}
+#| label: trend
+
+# use Dicky-Fuller test to determine trend
+trendTest <- adf.test(GDP_Net_TS)
+ur.df(GDP_Net_TS)
+# Critical PValue = 0.05. Reject Null if pvalue is above critcal
+# H0: deerminstic
+# H1: stochastic
+trendTest$p.value > 0.05
+# failed to reject. trend is Stochastic
+
+
+## Test for breaks
+
+#breaks in trend
+trend_brk <- breakpoints(GDP_Net_TS ~ time(GDP_Net_TS))
+summary(trend_brk)
+breakdates(trend_brk)
+# 4 breaks
+```
+
+The Net Worth and GDP Ratio has a stochastic trend and has 4 breaks. We need to make it stationary by taking the first difference and acount for the breaks in the model with dummies
+
+## Make Trend Stationary
+```{r output=FALSE, echo=FALSE, message=FALSE, warning=FALSE}
+par(mfrow = c(1, 1))
+# take first Diff
+GDP_Net_Diff <- diff(GDP_Net_TS)
+
+#test for stationarity again
+trendTest2 <- adf.test(GDP_Net_Diff)
+trendTest2$p.value > 0.05
+#We can reject the null now
+kpss.test(GDP_Net_Diff)
+
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+par(mfrow = c(1, 1))
+plot(
+    GDP_Net_Diff,
+    col = "red",
+    lwd = 2,
+    ylab = "Value",
+    xlab = "Date",
+    yaxt = "n",
+    main = "Quarterly Canadian GDP-Net Worth Ratio"
+)
+axis(
+    2, at = pretty(range(GDP_Net_Diff), n = 10), 
+    labels = percent(pretty(range(GDP_Net_Diff), n = 10))
+)
+```
+
+Ratio is stationary now
+
+## Choose Models
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+par(mfrow = c(1, 2))
+## see general lags
+acf(GDP_Net_Diff, main = "ACF")
+pacf(GDP_Net_Diff, main = "PACF")
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+## Use AIC on multiple models
+# compute AIC for AR model objects of class 'dynlm'
+My_AIC <- function(model) {
+  
+  ssr <- sum(model$residuals^2)
+  t <- length(model$residuals)
+  npar <- length(model$coef)
+  
+  return(
+    round(c("p" = npar - 1,
+          "AIC" = log(ssr/t) + npar * 2/t,
+          "Adj.R2" = summary(model)$adj.r.squared), 4)
+  )
+}
+
+AIC_Results <- sapply(1:6, function(x) 
+        "AR" = My_AIC(dynlm(GDP_Net_Diff ~ L(GDP_Net_Diff, 1:x))))
+
+
+kable(AIC_Results)
+```
+
+AIC yeilds 4 lags may be ideal
+
+### Models
+```{r output=FALSE, echo=FALSE, message=FALSE, warning=FALSE}
+#| label: models
+AR_1 <- dynlm(GDP_Net_Diff ~ L(GDP_Net_Diff, 1))
+summary(AR_1)
+AR_4 <- dynlm(GDP_Net_Diff ~ L(GDP_Net_Diff, 1:4))
+summary(AR_4)
+#time_index of first diff data
+ind <- time(GDP_Net_Diff)
+#mark breaks
+D1 <- as.numeric(ind > 1996.25)
+D2 <- as.numeric(ind > 2001.50)
+D3 <- as.numeric(ind > 2008.75)
+D4 <- as.numeric(ind > 2020.00)
+# run model
+AR_dum <- dynlm(GDP_Net_Diff ~ L(GDP_Net_Diff, 1:4) + D1 + D2 + D3 + D4)
+summary(AR_dum)
+```
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+stargazer(AR_1, AR_4, AR_dum,
+  type = "text",
+  title = "AR Models of Net Worth/GDP Ratio Change",
+  column.labels = c("AR(1)", "AR(4)", "AR(4) + Breaks"),
+  se = list(sqrt(diag(sandwich(AR_1))), sqrt(diag(sandwich(AR_4))), sqrt(diag(sandwich(AR_dum)))),
+  omit.stat = c("f", "ser"))
+```
